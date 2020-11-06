@@ -1,0 +1,36 @@
+---
+title: "SO Q: Divide all rows by single row in the tidyverse?"
+output: html_notebook
+---
+
+or How to make relative frequency table. 
+
+
+
+```{r}
+tbl <- tibble(freq1 = c(1:3), freq2 = c(4:6))
+
+tbl_rel %>% 
+  transmute(across(everything(), ~ ./sum(.)))
+
+# reprex
+dput(tbl)
+dput(tbl_rel)
+
+tbl <- tibble(name = letters[1:3], freq1 = c(1:3), freq2 = c(4:6))
+
+```
+
+
+ How can you apply a transformation (here, "transmute") to a subset of columns, but continue to work with the whole dataframe. That is, select, transform, and _unselect_. Instead, I use `bind_cols()`.
+```{r}
+tbl <- tibble(name = letters[1:3], freq1 = c(1:3), freq2 = c(4:6))
+
+bind_cols(tbl["name"], tbl %>% 
+            transmute(across(matches("\\d"), ~ ./ sum(.))))
+
+# divide by value of particular row per column, rather than sum of column
+bind_cols(tbl["name"], tbl %>% 
+            transmute(across(matches("\\d"), ~ ./ .[3])))
+```
+

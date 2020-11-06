@@ -1,0 +1,23 @@
+---
+title: "Haitian Canadian Explorary Data Analysis with cancensus"
+output: html_notebook
+---
+
+```{r setup}
+library(tidyverse)
+library(cancensus)
+```
+
+## Data import
+
+```{r}
+list_census_datasets()
+list_census_regions("CA16")
+list_census_vectors("CA16")
+
+# from regions list, make named list: (name: level, value: region_code)
+regions <- list(C = "01", PR = "24", CMA = "24462")
+
+
+```
+
