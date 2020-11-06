@@ -1,25 +1,30 @@
 ---
-title: "Occupational Table Explaratory Data Anylysis"
-output: html_notebook
+title: "Occupational Table Exploratory Data Analysis"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
 ---
 
 # Summary
 
-Stina sent two datasets. One is occupational data for all Canadian immigrants, from 1980 to 2016 (10 and 5 year increments), while the other is a series of archived web-only tables (prepared datasets) for the Haitian Canadian community specifically. I will explore the former here. I don't want to resort to web-scraping the latter. So I will try to gather the Haitian Canadian datasets that underlie the tables in another notebook.
+Stina sent two datasets. One is occupational data for all Canadian immigrants, from 1980 to 2016 (10 and 5 year increments), while the other is a series of archived web-only tables (prepared datasets) for the Haitian Canadian community specifically. I will explore the former here. I don't want to resort to web-scraping for the latter. So I will try to gather the Haitian Canadian datasets that underlie the tables  with an API in another notebook.
 
-I will on focus on figures that are percentages of overall immigration rates.
+I tried to download the raw data, rather than the table data, for this dataset. Unfortunately, downloading 1gb+ failed multiple times. I will look into gathered the equivalent data with an API in the other notebook.
 
-```{r setup}
+I was able to wrangle the table data into some sample visualizations without styling (below). It will be relatively easy now to put any of the table data into this form. Moreover, this kind of visualization is probably among the best for this table data.
+
+```{r setup, include=FALSE}
 library(tidyverse)
 ```
 
 ## Data import
 
-The csv file for the table that Stina linked had additional information that needed to be remvoed to be parsed correctly:
+The csv file for the table that Stina linked had additional information that needed to be removed to be parsed correctly:
 
  "Occupation - National Occupational Classification (NOC) 2016 (693A), Highest Certificate, Diploma or Degree (15), Admission Category and Applicant Type (31), Period of Immigration (7), Age (5A) and Sex (3) for the Immigrant Population Who Landed Between 1980 and 2016 Aged 15 Years and Over, in Private Households of Canada, Provinces and Territories, 2016 Census - 25% Sample Data"
 
-```{r results='hide'}
+```{r include=FALSE}
 imm_occ_raw <- read_csv("data/can_imm_mod.csv")
 colnames(imm_occ_raw)[1:2] <- c("occupation", "total")
 colnames(imm_occ_raw)[3:8] <- str_replace(colnames(imm_occ_raw)[3:8], " to ", "_")
@@ -34,21 +39,25 @@ imm_occ_bot <- imm_occ_raw[-c(1:3),] %>%
 
 imm_occ <- bind_rows(imm_occ_top, imm_occ_bot) %>% 
   select(-c("X9","2001_2010") )
-
-imm_occ %>% glimpse()
 ```
 
 ## Different views with filtering
+
 ```{r}
-
+# Top-level categories
 imm_occ %>%
-  filter(str_detect(code, "\\b[1-9]{1}\\b"))
+  filter(str_detect(code, "\\b[1-9]{1}\\b")) %>% 
+  select(c("code", "occupation"))
 
+# EX: "Occupations in manufacturing and utilities"
 imm_occ %>%
-  filter(str_detect(code, "^9[1-9]$"))
+  filter(str_detect(code, "^9[1-9]$")) %>% 
+  select(c("code", "occupation"))
 
+# EX: "Processing, manufacturing and utilities supervisors and central control operators"
 imm_occ %>%
-  filter(str_detect(code, "^92[1-9]$"))
+  filter(str_detect(code, "^92[1-9]$")) %>% 
+  select(c("code", "occupation"))
 
 imm_trans <- imm_occ %>% 
   filter(str_detect(code, "751")) %>% 
@@ -58,15 +67,49 @@ imm_trans <- imm_occ %>%
 
 ## Demo Visualization
 
+Work in transportation over time among new immigrants to Canada.
+
 ```{r}
 # get transport occupations per year
 imm_trans <- imm_occ %>% 
   filter(str_detect(code, "751"))
 
-# plot relative frequencies
-bind_cols(imm_trans[c("code", "occupation")], imm_trans %>% 
-            transmute(across(matches("\\d"), ~ ./ .[1]))) %>% 
-  ggplot()
+imm_trans[-1,] %>% # remove total transport occupations row
+  select(-"total")  %>% # remove total years immigration column
+  pivot_longer(!c("code", "occupation"), 
+               names_to = "years", 
+               values_to = "new_immigrants") %>% 
+  separate(years, 
+           into = c("start_year", "end_year"), 
+           sep = "_", 
+           convert = TRUE) %>% 
+  ggplot(aes(x = end_year, y = new_immigrants, fill = occupation)) +
+  geom_area() +
+  theme(legend.position="top") +
+  guides(fill = guide_legend(title = "Transportation Occupations", 
+                             direction = "vertical"))
+```
+
+Work in transportation over time among new immigrants to Canada, percentages. 
+
+```{r}
+imm_rel <- bind_cols(imm_trans[c("code", "occupation", "total")], imm_trans %>%
+            transmute(across(matches("\\d"), ~ ./ .[1])))
+
+imm_rel[-1,] %>% # remove total transport occupations row
+  select(-"total")  %>% # remove total years immigration column
+  pivot_longer(!c("code", "occupation"), 
+               names_to = "years", 
+               values_to = "percent_new_imm") %>% 
+  separate(years, 
+           into = c("start_year", "end_year"), 
+           sep = "_", 
+           convert = TRUE) %>% 
+  ggplot(aes(x = end_year, y = percent_new_imm, fill = occupation)) +
+  geom_area() +
+  theme(legend.position="top") +
+  guides(fill = guide_legend(title = "Transportation Occupations", 
+                             direction = "vertical"))
 
 ```
 
